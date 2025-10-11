@@ -411,8 +411,6 @@ public class PlayerActivity extends AppCompatActivity {
         buttonOpen.setContentDescription(getString(R.string.button_open));
 
         buttonOpen.setOnClickListener(view -> {
-            android.util.Log.d("PlayerActivity", "buttonOpen clicked, showing AlertDialog menu");
-
             final CharSequence[] items = {
                     getString(R.string.button_open_file),
                     getString(R.string.button_open_url)
