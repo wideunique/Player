@@ -139,6 +139,12 @@
         android:visibility="gone"/>
 
     <include layout="@layout/exo_player_control_ffwd_button" />
+    <ImageButton android:id="@+id/exo_replay"
+        style="@style/ExoStyledControls.Button.Center.Secondary"
+        android:src="@drawable/exo_styled_controls_replay"
+        android:visibility="gone"
+        android:contentDescription="@string/button_replay"/>
+
 
     <ImageButton android:id="@+id/exo_next"
         style="@style/ExoStyledControls.Button.Center.Next"/>

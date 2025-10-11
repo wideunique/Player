@@ -163,6 +163,7 @@ public class PlayerActivity extends AppCompatActivity {
     private ImageButton buttonAspectRatio;
     private ImageButton buttonRotation;
     private ImageButton exoSettings;
+    private ImageButton exoReplay;
     private ProgressBar loadingProgressBar;
     private PlayerControlView controlView;
     private CustomDefaultTimeBar timeBar;
@@ -333,6 +334,18 @@ public class PlayerActivity extends AppCompatActivity {
         coordinatorLayout = findViewById(R.id.coordinatorLayout);
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         playerView = findViewById(R.id.video_view);
+        exoReplay = playerView.findViewById(R.id.exo_replay);
+        if (exoReplay != null) {
+            exoReplay.setOnClickListener(v -> {
+                if (player != null) {
+                    player.seekTo(0);
+                    player.play();
+                    exoReplay.setVisibility(View.GONE);
+                    playbackFinished = false;
+                }
+            });
+        }
+
         loadingProgressBar = findViewById(R.id.loading);
 
         playerView.setShowNextButton(false);
@@ -1467,6 +1480,9 @@ public class PlayerActivity extends AppCompatActivity {
                 }
             }
             setEndControlsVisible(haveMedia && (state == Player.STATE_ENDED || isNearEnd));
+            if (exoReplay != null) {
+                exoReplay.setVisibility(state == Player.STATE_ENDED ? View.VISIBLE : View.GONE);
+            }
 
             if (state == Player.STATE_READY) {
                 frameRendered = true;
