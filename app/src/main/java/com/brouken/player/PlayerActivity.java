@@ -411,21 +411,22 @@ public class PlayerActivity extends AppCompatActivity {
         buttonOpen.setContentDescription(getString(R.string.button_open));
 
         buttonOpen.setOnClickListener(view -> {
-            android.widget.PopupMenu menu = new android.widget.PopupMenu(PlayerActivity.this, buttonOpen);
-            menu.getMenu().add(0, 1, 0, getString(R.string.button_open_file));
-            menu.getMenu().add(0, 2, 1, getString(R.string.button_open_url));
-            menu.setOnMenuItemClickListener(item -> {
-                if (item.getItemId() == 1) {
-                    openFile(mPrefs.mediaUri);
-                    return true;
-                } else if (item.getItemId() == 2) {
-                    Intent intent = new Intent(PlayerActivity.this, WebBrowserActivity.class);
-                    startActivity(intent);
-                    return true;
-                }
-                return false;
-            });
-            menu.show();
+            android.util.Log.d("PlayerActivity", "buttonOpen clicked, showing AlertDialog menu");
+
+            final CharSequence[] items = {
+                    getString(R.string.button_open_file),
+                    getString(R.string.button_open_url)
+            };
+            new AlertDialog.Builder(PlayerActivity.this)
+                    .setItems(items, (dialog, which) -> {
+                        if (which == 0) {
+                            openFile(mPrefs.mediaUri);
+                        } else if (which == 1) {
+                            Intent intent = new Intent(PlayerActivity.this, WebBrowserActivity.class);
+                            startActivity(intent);
+                        }
+                    })
+                    .show();
         });
 
         buttonOpen.setOnLongClickListener(view -> {
