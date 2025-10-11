@@ -118,6 +118,7 @@ public class WebBrowserActivity extends AppCompatActivity {
             webView.loadUrl(extraUrl);
         } else if (lastUrl != null && !lastUrl.isEmpty()) {
             urlInput.setText(lastUrl);
+            webView.loadUrl(lastUrl);
         }
     }
 
