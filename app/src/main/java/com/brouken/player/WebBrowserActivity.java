@@ -24,6 +24,8 @@ public class WebBrowserActivity extends AppCompatActivity {
 
     private WebView webView;
     private EditText urlInput;
+    private int initialZoomPercent = 100;
+
     private ProgressBar progressBar;
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -85,6 +87,11 @@ public class WebBrowserActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 getSharedPreferences("web", MODE_PRIVATE).edit().putString("last_url", url).apply();
+                // Apply saved initial zoom again after load to ensure it sticks
+                final int toApply = initialZoomPercent;
+                if (toApply > 0) {
+                    webView.post(() -> webView.setInitialScale(toApply));
+                }
             }
 
             @Override
@@ -95,6 +102,13 @@ public class WebBrowserActivity extends AppCompatActivity {
         });
 
         final android.content.SharedPreferences prefs = getSharedPreferences("web", MODE_PRIVATE);
+        // Restore last zoom scale (percent), clamp to 50-300, and set as initial scale before loading
+        int savedZoom = prefs.getInt("last_zoom_scale", 100);
+        if (savedZoom < 50) savedZoom = 50;
+        if (savedZoom > 300) savedZoom = 300;
+        initialZoomPercent = savedZoom;
+        webView.setInitialScale(initialZoomPercent);
+
         final String lastUrl = prefs.getString("last_url", null);
 
         goButton.setOnClickListener(v -> {
@@ -128,6 +142,18 @@ public class WebBrowserActivity extends AppCompatActivity {
         intent.setData(Uri.parse(url));
         startActivity(intent);
         finish();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (webView != null) {
+            float scale = webView.getScale();
+            int percent = Math.round(scale * 100f);
+            if (percent < 50) percent = 50;
+            if (percent > 300) percent = 300;
+            getSharedPreferences("web", MODE_PRIVATE).edit().putInt("last_zoom_scale", percent).apply();
+        }
     }
 
     @Override
