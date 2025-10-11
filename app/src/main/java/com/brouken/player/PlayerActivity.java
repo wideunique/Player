@@ -57,8 +57,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.content.ContextCompat;
@@ -111,7 +113,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-public class PlayerActivity extends Activity {
+public class PlayerActivity extends AppCompatActivity {
 
     private PlayerListener playerListener;
     private BroadcastReceiver mReceiver;
@@ -161,7 +163,6 @@ public class PlayerActivity extends Activity {
     private ImageButton buttonAspectRatio;
     private ImageButton buttonRotation;
     private ImageButton exoSettings;
-    private ImageButton exoPlayPause;
     private ProgressBar loadingProgressBar;
     private PlayerControlView controlView;
     private CustomDefaultTimeBar timeBar;
@@ -214,6 +215,15 @@ public class PlayerActivity extends Activity {
         }
     };
 
+    private final OnBackPressedCallback backPressedCallback = new OnBackPressedCallback(true) {
+        @Override
+        public void handleOnBackPressed() {
+            if (!consumeBackPressed()) {
+                performDefaultBack();
+            }
+        }
+    };
+
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -242,6 +252,8 @@ public class PlayerActivity extends Activity {
         }
 
         isTvBox = Utils.isTvBox(this);
+
+        getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
 
         if (isTvBox) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
@@ -321,7 +333,6 @@ public class PlayerActivity extends Activity {
         coordinatorLayout = findViewById(R.id.coordinatorLayout);
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         playerView = findViewById(R.id.video_view);
-        exoPlayPause = findViewById(R.id.exo_play_pause);
         loadingProgressBar = findViewById(R.id.loading);
 
         playerView.setShowNextButton(false);
@@ -332,7 +343,9 @@ public class PlayerActivity extends Activity {
         playerView.setRepeatToggleModes(Player.REPEAT_MODE_ONE);
 
         playerView.setControllerHideOnTouch(false);
-        playerView.setControllerAutoShow(true);
+        playerView.setControllerAutoShow(false);
+
+        playerView.setControllerShowTimeoutMs(-1);
 
         ((DoubleTapPlayerView)playerView).setDoubleTapEnabled(false);
 
@@ -573,7 +586,6 @@ public class PlayerActivity extends Activity {
             }
         });
 
-        exoPlayPause.setOnClickListener(view -> dispatchPlayPause());
 
         // Prevent double tap actions in controller
         findViewById(R.id.exo_bottom_bar).setOnTouchListener((v, event) -> true);
@@ -642,20 +654,12 @@ public class PlayerActivity extends Activity {
                 controllerVisible = visibility == View.VISIBLE;
                 controllerVisibleFully = playerView.isControllerFullyVisible();
 
-                if (PlayerActivity.restoreControllerTimeout) {
-                    restoreControllerTimeout = false;
-                    if (player == null || !player.isPlaying()) {
-                        playerView.setControllerShowTimeoutMs(-1);
-                    } else {
-                        playerView.setControllerShowTimeoutMs(PlayerActivity.CONTROLLER_TIMEOUT);
-                    }
-                }
 
                 // https://developer.android.com/training/system-ui/immersive
                 Utils.toggleSystemUi(PlayerActivity.this, playerView, visibility == View.VISIBLE);
                 if (visibility == View.VISIBLE) {
                     // Because when using dpad controls, focus resets to first item in bottom controls bar
-                    findViewById(R.id.exo_play_pause).requestFocus();
+                    if (exoSettings != null) { exoSettings.requestFocus(); }
                 }
 
                 if (controllerVisible && playerView.isControllerFullyVisible()) {
@@ -758,10 +762,17 @@ public class PlayerActivity extends Activity {
         releasePlayer(false);
     }
 
-    @Override
-    public void onBackPressed() {
+    private boolean consumeBackPressed() {
+        if (isTvBox && controllerVisible && player != null && player.isPlaying()) {
+            playerView.hideController();
+            return true;
+        }
+        return false;
+    }
+
+    private void performDefaultBack() {
         restorePlayStateAllowed = false;
-        super.onBackPressed();
+        finishAfterTransition();
     }
 
     @Override
@@ -905,16 +916,6 @@ public class PlayerActivity extends Activity {
                     return true;
                 }
                 break;
-            case KeyEvent.KEYCODE_BACK:
-                if (isTvBox) {
-                    if (controllerVisible && player != null && player.isPlaying()) {
-                        playerView.hideController();
-                        return true;
-                    } else {
-                        onBackPressed();
-                    }
-                }
-                break;
             case KeyEvent.KEYCODE_UNKNOWN:
                 return super.onKeyDown(keyCode, event);
             default:
@@ -1051,7 +1052,7 @@ public class PlayerActivity extends Activity {
                 unregisterReceiver(mReceiver);
                 mReceiver = null;
             }
-            playerView.setControllerAutoShow(true);
+            playerView.setControllerAutoShow(false);
             if (player != null) {
                 if (player.isPlaying())
                     Utils.toggleSystemUi(this, playerView, false);
@@ -1370,7 +1371,6 @@ public class PlayerActivity extends Activity {
         if (restorePlayState) {
             restorePlayState = false;
             playerView.showController();
-            playerView.setControllerShowTimeoutMs(PlayerActivity.CONTROLLER_TIMEOUT);
             player.setPlayWhenReady(true);
         }
     }
@@ -1449,19 +1449,6 @@ public class PlayerActivity extends Activity {
                 }
             }
 
-            if (!isScrubbing) {
-                if (isPlaying) {
-                    if (shortControllerTimeout) {
-                        playerView.setControllerShowTimeoutMs(CONTROLLER_TIMEOUT / 3);
-                        shortControllerTimeout = false;
-                        restoreControllerTimeout = true;
-                    } else {
-                        playerView.setControllerShowTimeoutMs(CONTROLLER_TIMEOUT);
-                    }
-                } else {
-                    playerView.setControllerShowTimeoutMs(-1);
-                }
-            }
 
             if (!isPlaying) {
                 PlayerActivity.locked = false;
@@ -2082,22 +2069,19 @@ public class PlayerActivity extends Activity {
     }
 
     void resetHideCallbacks() {
-        if (haveMedia && player != null && player.isPlaying()) {
-            // Keep controller UI visible - alternative to resetHideCallbacks()
-            playerView.setControllerShowTimeoutMs(PlayerActivity.CONTROLLER_TIMEOUT);
-        }
+        // no-op: controller auto-hide disabled
     }
 
     private void updateLoading(final boolean enableLoading) {
         if (enableLoading) {
-            exoPlayPause.setVisibility(View.GONE);
             loadingProgressBar.setVisibility(View.VISIBLE);
         } else {
             loadingProgressBar.setVisibility(View.GONE);
-            exoPlayPause.setVisibility(View.VISIBLE);
             if (focusPlay) {
                 focusPlay = false;
-                exoPlayPause.requestFocus();
+                if (exoSettings != null) {
+                    exoSettings.requestFocus();
+                }
             }
         }
     }
