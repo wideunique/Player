@@ -102,10 +102,8 @@ public class WebBrowserActivity extends AppCompatActivity {
         });
 
         final android.content.SharedPreferences prefs = getSharedPreferences("web", MODE_PRIVATE);
-        // Restore last zoom scale (percent), clamp to 50-300, and set as initial scale before loading
+        // Restore last zoom scale (percent) and set as initial scale before loading
         int savedZoom = prefs.getInt("last_zoom_scale", 100);
-        if (savedZoom < 50) savedZoom = 50;
-        if (savedZoom > 300) savedZoom = 300;
         initialZoomPercent = savedZoom;
         webView.setInitialScale(initialZoomPercent);
 
@@ -150,8 +148,7 @@ public class WebBrowserActivity extends AppCompatActivity {
         if (webView != null) {
             float scale = webView.getScale();
             int percent = Math.round(scale * 100f);
-            if (percent < 50) percent = 50;
-            if (percent > 300) percent = 300;
+            if (percent < 1) percent = 1; // avoid zero
             getSharedPreferences("web", MODE_PRIVATE).edit().putInt("last_zoom_scale", percent).apply();
         }
     }
