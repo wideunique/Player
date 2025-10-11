@@ -17,6 +17,8 @@ import android.widget.ProgressBar;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import java.util.Locale;
+
 
 public class WebBrowserActivity extends AppCompatActivity {
 
@@ -102,11 +104,6 @@ public class WebBrowserActivity extends AppCompatActivity {
         });
 
         final android.content.SharedPreferences prefs = getSharedPreferences("web", MODE_PRIVATE);
-        // Restore last zoom scale (percent) and set as initial scale before loading
-        int savedZoom = prefs.getInt("last_zoom_scale", 100);
-        initialZoomPercent = savedZoom;
-        webView.setInitialScale(initialZoomPercent);
-
         final String lastUrl = prefs.getString("last_url", null);
 
         goButton.setOnClickListener(v -> {
@@ -116,6 +113,10 @@ public class WebBrowserActivity extends AppCompatActivity {
                     url = "http://" + url;
                 }
                 prefs.edit().putString("last_url", url).apply();
+                int z = prefs.getInt("zoom:" + zoomKeyForUrl(url), prefs.getInt("last_zoom_scale", 100));
+                if (z < 1) z = 1;
+                initialZoomPercent = z;
+                webView.setInitialScale(initialZoomPercent);
                 if (Utils.isVideoUrl(url) || Utils.isAudioUrl(url)) {
                     playInPlayer(url);
                 } else {
@@ -125,12 +126,19 @@ public class WebBrowserActivity extends AppCompatActivity {
         });
 
         String extraUrl = getIntent().getStringExtra(EXTRA_URL);
+        String initialUrl = null;
         if (extraUrl != null && !extraUrl.isEmpty()) {
-            urlInput.setText(extraUrl);
-            webView.loadUrl(extraUrl);
+            initialUrl = extraUrl;
         } else if (lastUrl != null && !lastUrl.isEmpty()) {
-            urlInput.setText(lastUrl);
-            webView.loadUrl(lastUrl);
+            initialUrl = lastUrl;
+        }
+        if (initialUrl != null) {
+            urlInput.setText(initialUrl);
+            int z = prefs.getInt("zoom:" + zoomKeyForUrl(initialUrl), prefs.getInt("last_zoom_scale", 100));
+            if (z < 1) z = 1;
+            initialZoomPercent = z;
+            webView.setInitialScale(initialZoomPercent);
+            webView.loadUrl(initialUrl);
         }
     }
 
@@ -142,6 +150,21 @@ public class WebBrowserActivity extends AppCompatActivity {
         finish();
     }
 
+    private static String zoomKeyForUrl(String url) {
+        try {
+            Uri uri = Uri.parse(url);
+            String host = uri.getHost();
+            String path = uri.getPath();
+            if (host == null) return url;
+            host = host.toLowerCase(Locale.US);
+            if (path == null || path.isEmpty()) path = "/";
+            else if (path.length() > 1 && path.endsWith("/")) path = path.substring(0, path.length() - 1);
+            return host + path;
+        } catch (Exception e) {
+            return url;
+        }
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
@@ -149,7 +172,12 @@ public class WebBrowserActivity extends AppCompatActivity {
             float scale = webView.getScale();
             int percent = Math.round(scale * 100f);
             if (percent < 1) percent = 1; // avoid zero
-            getSharedPreferences("web", MODE_PRIVATE).edit().putInt("last_zoom_scale", percent).apply();
+            final android.content.SharedPreferences prefs = getSharedPreferences("web", MODE_PRIVATE);
+            prefs.edit().putInt("last_zoom_scale", percent).apply();
+            String current = webView.getUrl();
+            if (current != null && !current.isEmpty()) {
+                prefs.edit().putInt("zoom:" + zoomKeyForUrl(current), percent).apply();
+            }
         }
     }
 
