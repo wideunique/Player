@@ -260,9 +260,6 @@ public class PlayerActivity extends AppCompatActivity {
 
         getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
 
-        if (isTvBox) {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-        }
 
         final Intent launchIntent = getIntent();
         final String action = launchIntent.getAction();
