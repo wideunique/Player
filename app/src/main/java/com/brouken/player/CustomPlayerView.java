@@ -88,15 +88,6 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
 
         mScaleDetector = new ScaleGestureDetector(context, this);
 
-        if (!Utils.isTvBox(getContext())) {
-            exoErrorMessage.setOnClickListener(v -> {
-                if (PlayerActivity.locked) {
-                    PlayerActivity.locked = false;
-                    Utils.showText(CustomPlayerView.this, "", MESSAGE_TIMEOUT_LONG);
-                    setIconLock(false);
-                }
-            });
-        }
     }
 
     public void clearIcon() {
@@ -106,10 +97,6 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
-        if (PlayerActivity.restoreControllerTimeout) {
-            setControllerShowTimeoutMs(PlayerActivity.CONTROLLER_TIMEOUT);
-            PlayerActivity.restoreControllerTimeout = false;
-        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && gestureOrientation == Orientation.UNKNOWN)
             mScaleDetector.onTouchEvent(ev);
@@ -140,7 +127,6 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
                         }
                     }
 
-                    setControllerAutoShow(true);
 
                     if (seekProgress) {
                         seekProgress = false;
@@ -179,20 +165,15 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
     }
 
     public boolean tap() {
-        if (PlayerActivity.locked) {
-            Utils.showText(this, "", MESSAGE_TIMEOUT_LONG);
-            setIconLock(true);
-            return true;
+        if (PlayerActivity.player == null) {
+            return false;
         }
-
-        if (!PlayerActivity.controllerVisibleFully) {
-            showController();
-            return true;
-        } else if (PlayerActivity.haveMedia && PlayerActivity.player != null && PlayerActivity.player.isPlaying()) {
-            hideController();
-            return true;
+        if (PlayerActivity.player.isPlaying()) {
+            PlayerActivity.player.pause();
+        } else {
+            PlayerActivity.player.play();
         }
-        return false;
+        return true;
     }
 
     @Override
@@ -292,15 +273,11 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
 
     @Override
     public void onLongPress(MotionEvent motionEvent) {
-        if (PlayerActivity.locked || (getPlayer() != null && getPlayer().isPlaying())) {
-            PlayerActivity.locked = !PlayerActivity.locked;
-            isHandledLongPress = true;
-            Utils.showText(this, "", MESSAGE_TIMEOUT_LONG);
-            setIconLock(PlayerActivity.locked);
-
-            if (PlayerActivity.locked && PlayerActivity.controllerVisible) {
-                hideController();
-            }
+        isHandledLongPress = true;
+        if (isControllerFullyVisible()) {
+            hideController();
+        } else {
+            showController();
         }
     }
 
