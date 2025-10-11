@@ -65,4 +65,8 @@
     <string name="title_browser">Browser</string>
 
     <string name="button_replay">Replay</string>
+    <string name="button_download">Download</string>
+    <string name="download_started">开始下载</string>
+    <string name="error_permission_denied">权限被拒绝</string>
+    <string name="error_generic">操作失败</string>
 </resources>

@@ -164,6 +164,10 @@ public class PlayerActivity extends AppCompatActivity {
     private ImageButton buttonRotation;
     private ImageButton exoSettings;
     private ImageButton exoReplay;
+    private ImageButton buttonDownload;
+    private static final int REQUEST_PERMISSION_WRITE = 5001;
+    private String pendingDownloadUrl;
+
     private ProgressBar loadingProgressBar;
     private PlayerControlView controlView;
     private CustomDefaultTimeBar timeBar;
@@ -406,7 +410,23 @@ public class PlayerActivity extends AppCompatActivity {
         buttonOpen.setId(View.generateViewId());
         buttonOpen.setContentDescription(getString(R.string.button_open));
 
-        buttonOpen.setOnClickListener(view -> openFile(mPrefs.mediaUri));
+        buttonOpen.setOnClickListener(view -> {
+            android.widget.PopupMenu menu = new android.widget.PopupMenu(PlayerActivity.this, buttonOpen);
+            menu.getMenu().add(0, 1, 0, getString(R.string.button_open_file));
+            menu.getMenu().add(0, 2, 1, getString(R.string.button_open_url));
+            menu.setOnMenuItemClickListener(item -> {
+                if (item.getItemId() == 1) {
+                    openFile(mPrefs.mediaUri);
+                    return true;
+                } else if (item.getItemId() == 2) {
+                    Intent intent = new Intent(PlayerActivity.this, WebBrowserActivity.class);
+                    startActivity(intent);
+                    return true;
+                }
+                return false;
+            });
+            menu.show();
+        });
 
         buttonOpen.setOnLongClickListener(view -> {
             if (!isTvBox && mPrefs.askScope) {
@@ -426,6 +446,12 @@ public class PlayerActivity extends AppCompatActivity {
             if (success) {
                 buttonPiP = new ImageButton(this, null, 0, R.style.ExoStyledControls_Button_Bottom);
                 buttonPiP.setContentDescription(getString(R.string.button_pip));
+        buttonDownload = new ImageButton(this, null, 0, R.style.ExoStyledControls_Button_Bottom);
+        buttonDownload.setContentDescription(getString(R.string.button_download));
+        buttonDownload.setImageResource(R.drawable.exo_styled_controls_download);
+        buttonDownload.setOnClickListener(v -> onDownloadClick());
+        buttonDownload.setVisibility(View.GONE);
+
                 buttonPiP.setImageResource(R.drawable.ic_picture_in_picture_alt_24dp);
 
                 buttonPiP.setOnClickListener(view -> enterPiP());
@@ -643,6 +669,8 @@ public class PlayerActivity extends AppCompatActivity {
 
         controls.addView(buttonOpen);
         controls.addView(exoSubtitle);
+        controls.addView(buttonDownload);
+
         controls.addView(buttonAspectRatio);
         if (Utils.isPiPSupported(this) && buttonPiP != null) {
             controls.addView(buttonPiP);
@@ -1380,6 +1408,8 @@ public class PlayerActivity extends AppCompatActivity {
 
         player.addListener(playerListener);
         player.prepare();
+        updateDownloadButtonVisibility();
+
 
         if (restorePlayState) {
             restorePlayState = false;
@@ -2226,6 +2256,7 @@ public class PlayerActivity extends AppCompatActivity {
         if (active) {
             intent.putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MOVIE);
         }
+
         try {
             sendBroadcast(intent);
         } catch (SecurityException e) {
@@ -2244,6 +2275,82 @@ public class PlayerActivity extends AppCompatActivity {
             Utils.setButtonEnabled(this, exoSettings, enable);
         }
     }
+
+    private void updateDownloadButtonVisibility() {
+        if (buttonDownload == null) return;
+        boolean visible = false;
+        if (haveMedia && mPrefs.mediaUri != null) {
+            String scheme = mPrefs.mediaUri.getScheme();
+            if (scheme != null) {
+                String s = scheme.toLowerCase();
+                visible = s.startsWith("http");
+            }
+        }
+        buttonDownload.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    private void onDownloadClick() {
+        if (mPrefs.mediaUri == null) {
+            Toast.makeText(this, R.string.error_generic, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String scheme = mPrefs.mediaUri.getScheme();
+        if (scheme == null || !scheme.toLowerCase().startsWith("http")) {
+            Toast.makeText(this, R.string.error_generic, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String url = mPrefs.mediaUri.toString();
+        if (Build.VERSION.SDK_INT < 29) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                pendingDownloadUrl = url;
+                requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_PERMISSION_WRITE);
+                return;
+            }
+        }
+        startDownload(url);
+    }
+
+    private void startDownload(String url) {
+        try {
+            android.app.DownloadManager dm = (android.app.DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+            android.app.DownloadManager.Request req = new android.app.DownloadManager.Request(Uri.parse(url));
+            String filename = null;
+            try {
+                String path = mPrefs.mediaUri.getLastPathSegment();
+                if (path != null && path.length() > 0) filename = path;
+            } catch (Exception ignore) { }
+            if (filename == null) filename = "media_" + System.currentTimeMillis();
+            req.setTitle(filename);
+            req.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, filename);
+            req.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            // Basic auth if present
+            String userInfo = mPrefs.mediaUri.getUserInfo();
+            if (userInfo != null && userInfo.contains(":")) {
+                String token = android.util.Base64.encodeToString(userInfo.getBytes(), android.util.Base64.NO_WRAP);
+                req.addRequestHeader("Authorization", "Basic " + token);
+            }
+            dm.enqueue(req);
+            Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.error_generic, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_PERMISSION_WRITE) {
+            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                if (pendingDownloadUrl != null) {
+                    startDownload(pendingDownloadUrl);
+                    pendingDownloadUrl = null;
+                }
+            } else {
+                Toast.makeText(this, R.string.error_permission_denied, Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
 
     private void scaleStart() {
         isScaling = true;
@@ -2306,6 +2413,7 @@ public class PlayerActivity extends AppCompatActivity {
                 buttonRotation.setImageResource(R.drawable.ic_screen_lock_portrait_24dp);
             } else {
                 buttonRotation.setImageResource(R.drawable.ic_screen_lock_landscape_24dp);
+
             }
         } else {
             if (auto) {
