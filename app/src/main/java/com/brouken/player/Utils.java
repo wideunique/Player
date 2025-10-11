@@ -43,6 +43,8 @@ import android.widget.ImageButton;
 import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
+import androidx.annotation.Nullable;
+
 import androidx.documentfile.provider.DocumentFile;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
@@ -73,7 +75,8 @@ class Utils {
 
     public static final String FEATURE_FIRE_TV = "amazon.hardware.fire_tv";
 
-    public static final String[] supportedExtensionsVideo = new String[] { "3gp", "m4v", "mkv", "mov", "mp4", "ts", "webm" };
+    public static final String[] supportedExtensionsVideo = new String[] { "3gp", "m4v", "mkv", "mov", "mp4", "ts", "webm", "m3u8" };
+    public static final String[] supportedExtensionsAudio = new String[] { "mp3", "aac", "flac", "wav", "ogg", "m4a", "opus" };
     public static final String[] supportedExtensionsSubtitle = new String[] { "srt", "ssa", "ass", "vtt", "ttml", "dfxp", "xml" };
 
     public static final String[] supportedMimeTypesVideo = new String[] {
@@ -117,6 +120,7 @@ class Utils {
         } else {
             String path;
             if (ContentResolver.SCHEME_FILE.equals(scheme)) {
+
                 path = uri.getPath();
             } else {
                 path = uri.toString();
@@ -159,6 +163,7 @@ class Utils {
         String result = null;
         try {
             if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+
                 try (Cursor cursor = context.getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
                     if (cursor != null && cursor.moveToFirst()) {
                         final int columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
@@ -216,6 +221,7 @@ class Utils {
             if (PlayerActivity.loudnessEnhancer != null) {
                 try {
                     PlayerActivity.loudnessEnhancer.setEnabled(false);
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -860,4 +866,40 @@ class Utils {
             return false;
         }
     }
+
+    public static boolean isVideoUrl(String url) {
+        String ext = getExtensionFromUrl(url);
+        if (ext == null) return false;
+        for (String v : supportedExtensionsVideo) {
+            if (v.equalsIgnoreCase(ext)) return true;
+        }
+        return false;
+    }
+
+    public static boolean isAudioUrl(String url) {
+        String ext = getExtensionFromUrl(url);
+        if (ext == null) return false;
+        if (supportedExtensionsAudio == null) return false;
+        for (String a : supportedExtensionsAudio) {
+            if (a.equalsIgnoreCase(ext)) return true;
+        }
+        return false;
+    }
+
+    @Nullable
+    public static String getExtensionFromUrl(String url) {
+        try {
+            Uri u = Uri.parse(url);
+            String path = u.getPath();
+            if (path == null) return null;
+            int q = path.lastIndexOf('/') >= 0 ? path.lastIndexOf('/') + 1 : 0;
+            String file = path.substring(q);
+            int dot = file.lastIndexOf('.');
+            if (dot < 0 || dot == file.length() - 1) return null;
+            return file.substring(dot + 1).toLowerCase(Locale.US);
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
 }

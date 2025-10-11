@@ -14,6 +14,7 @@
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+
     <queries>
         <intent>
             <action android:name="android.intent.action.OPEN_DOCUMENT" />
@@ -696,6 +697,10 @@
             android:name=".MediaStoreChooserActivity"
             android:configChanges="orientation"
             android:theme="@style/Transparent" />
+        <activity
+            android:name=".WebBrowserActivity"
+            android:exported="false"
+            android:label="@string/title_browser" />
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
