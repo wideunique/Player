@@ -645,21 +645,77 @@ public class PlayerActivity extends AppCompatActivity {
         exoBasicControls.removeView(exoRepeat);
         //exoBasicControls.setVisibility(View.GONE);
 
-        exoSettings.setOnLongClickListener(view -> {
+        exoSettings.setOnClickListener(view -> {
             final ArrayList<CharSequence> items = new ArrayList<>();
             final ArrayList<Runnable> actions = new ArrayList<>();
 
+            // Playback speed
+            items.add(getString(R.string.menu_playback_speed));
+            actions.add(() -> {
+                final float[] speeds = new float[] {0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f};
+                final CharSequence[] labels = new CharSequence[speeds.length];
+                for (int i = 0; i < speeds.length; i++) labels[i] = speeds[i] + "x";
+                new AlertDialog.Builder(PlayerActivity.this)
+                        .setTitle(R.string.menu_playback_speed)
+                        .setItems(labels, (d, which) -> {
+                            float s = speeds[which];
+                            mPrefs.updateMeta(mPrefs.audioTrackId, mPrefs.subtitleTrackId, mPrefs.resizeMode, mPrefs.scale, s);
+                            if (player != null) player.setPlaybackSpeed(s);
+                        })
+                        .show();
+            });
+
+            // Audio track
+            items.add(getString(R.string.menu_audio_track));
+            actions.add(() -> {
+                if (player == null) return;
+                final ArrayList<CharSequence> names = new ArrayList<>();
+                final ArrayList<String> ids = new ArrayList<>();
+                names.add(getString(R.string.pref_language_track_default));
+                ids.add(null);
+                Tracks tracks = player.getCurrentTracks();
+                for (Tracks.Group group : tracks.getGroups()) {
+                    if (group.getType() == C.TRACK_TYPE_AUDIO) {
+                        final TrackGroup tg = group.getMediaTrackGroup();
+                        final Format f = tg.getFormat(0);
+                        String name = f.label != null ? f.label : (f.language != null ? f.language : ("Track " + (names.size())));
+                        names.add(name);
+                        ids.add(f.id);
+                    }
+                }
+                new AlertDialog.Builder(PlayerActivity.this)
+                        .setTitle(R.string.menu_audio_track)
+                        .setItems(names.toArray(new CharSequence[0]), (d, which) -> {
+                            String selectedId = ids.get(which);
+                            if (player != null) {
+                                TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon();
+                                b.clearOverridesOfType(C.TRACK_TYPE_AUDIO);
+                                player.setTrackSelectionParameters(b.build());
+                            }
+                            if (selectedId != null) {
+                                String currentSubtitle = getSelectedTrack(C.TRACK_TYPE_TEXT);
+                                setSelectedTracks(currentSubtitle, selectedId);
+                            }
+                            mPrefs.updateMeta(selectedId, mPrefs.subtitleTrackId, mPrefs.resizeMode, mPrefs.scale, mPrefs.speed);
+                        })
+                        .show();
+            });
+
+            // Subtitle (built-in dialog)
             items.add(getString(R.string.pref_subtitle_header));
             actions.add(() -> { if (exoSubtitle != null) exoSubtitle.performClick(); });
 
+            // Resize
             items.add(getString(R.string.button_crop));
             actions.add(() -> { if (buttonAspectRatio != null) buttonAspectRatio.performClick(); });
 
+            // PiP
             if (Utils.isPiPSupported(this)) {
                 items.add(getString(R.string.button_pip));
                 actions.add(() -> { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) enterPiP(); });
             }
 
+            // App settings
             items.add(getString(R.string.pref_title));
             actions.add(() -> {
                 Intent intent = new Intent(this, SettingsActivity.class);
@@ -669,6 +725,12 @@ public class PlayerActivity extends AppCompatActivity {
             new AlertDialog.Builder(PlayerActivity.this)
                     .setItems(items.toArray(new CharSequence[0]), (dialog, which) -> actions.get(which).run())
                     .show();
+        });
+
+        // Long-press: quick open app Settings
+        exoSettings.setOnLongClickListener(v -> {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivityForResult(intent, REQUEST_SETTINGS);
             return true;
         });
 
