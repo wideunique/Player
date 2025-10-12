@@ -317,14 +317,17 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
                 mScaleFactor = mScaleFactorFit = getScaleFit();
                 canScale = true;
             });
-            getVideoSurfaceView().setAlpha(0);
+            final View videoSurface = getVideoSurfaceView();
+            if (videoSurface != null) videoSurface.setAlpha(0);
             setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
         } else {
             mScaleFactorFit = getScaleFit();
             canScale = true;
         }
         ImageButton buttonAspectRatio = findViewById(Integer.MAX_VALUE - 100);
-        buttonAspectRatio.setImageResource(R.drawable.ic_fit_screen_24dp);
+        if (buttonAspectRatio != null) {
+            buttonAspectRatio.setImageResource(R.drawable.ic_fit_screen_24dp);
+        }
         hideController();
         return true;
     }
@@ -338,7 +341,9 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
             setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
 
             ImageButton buttonAspectRatio = findViewById(Integer.MAX_VALUE - 100);
-            buttonAspectRatio.setImageResource(R.drawable.ic_aspect_ratio_24dp);
+            if (buttonAspectRatio != null) {
+                buttonAspectRatio.setImageResource(R.drawable.ic_aspect_ratio_24dp);
+            }
         }
         if (PlayerActivity.player != null && !PlayerActivity.player.isPlaying()) {
             showController();
@@ -347,8 +352,9 @@ public class CustomPlayerView extends PlayerView implements GestureDetector.OnGe
     }
 
     private void restoreSurfaceView() {
-        if (getVideoSurfaceView().getAlpha() != 1) {
-            getVideoSurfaceView().setAlpha(1);
+        final View videoSurface = getVideoSurfaceView();
+        if (videoSurface != null && videoSurface.getAlpha() != 1) {
+            videoSurface.setAlpha(1);
         }
     }
 
