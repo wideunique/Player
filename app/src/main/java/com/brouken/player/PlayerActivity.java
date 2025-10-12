@@ -637,7 +637,7 @@ public class PlayerActivity extends AppCompatActivity {
 
         final LinearLayout exoBasicControls = playerView.findViewById(R.id.exo_basic_controls);
         final ImageButton exoSubtitle = exoBasicControls.findViewById(R.id.exo_subtitle);
-        exoBasicControls.removeView(exoSubtitle);
+        if (exoSubtitle != null) exoSubtitle.setVisibility(View.GONE);
 
         exoSettings = exoBasicControls.findViewById(R.id.exo_settings);
         exoBasicControls.removeView(exoSettings);
@@ -651,6 +651,23 @@ public class PlayerActivity extends AppCompatActivity {
             startActivityForResult(intent, REQUEST_SETTINGS);
             return true;
         });
+        exoSettings.setOnClickListener(v -> {
+            final ArrayList<CharSequence> items = new ArrayList<>();
+            final ArrayList<Runnable> actions = new ArrayList<>();
+
+            items.add(getString(R.string.pref_subtitle_header));
+            actions.add(() -> { if (exoSubtitle != null) exoSubtitle.performClick(); });
+
+            if (Utils.isPiPSupported(this)) {
+                items.add(getString(R.string.button_pip));
+                actions.add(() -> { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) enterPiP(); });
+            }
+
+            new AlertDialog.Builder(PlayerActivity.this)
+                    .setItems(items.toArray(new CharSequence[0]), (dialog, which) -> actions.get(which).run())
+                    .show();
+        });
+
 
         exoSubtitle.setOnLongClickListener(v -> {
             enableRotation();
@@ -664,13 +681,9 @@ public class PlayerActivity extends AppCompatActivity {
         final LinearLayout controls = horizontalScrollView.findViewById(R.id.controls);
 
         controls.addView(buttonOpen);
-        controls.addView(exoSubtitle);
         controls.addView(buttonDownload);
 
         controls.addView(buttonAspectRatio);
-        if (Utils.isPiPSupported(this) && buttonPiP != null) {
-            controls.addView(buttonPiP);
-        }
         if (mPrefs.repeatToggle) {
             controls.addView(exoRepeat);
         }

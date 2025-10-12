@@ -54,12 +54,14 @@
           style="@style/ExoStyledControls.Button.Bottom.RepeatToggle"/>
 
       <ImageButton android:id="@+id/exo_subtitle"
+          android:visibility="gone"
           style="@style/ExoStyledControls.Button.Bottom.CC"/>
 
       <ImageButton android:id="@+id/exo_settings"
           style="@style/ExoStyledControls.Button.Bottom.Settings"/>
 
       <ImageButton android:id="@+id/exo_fullscreen"
+          android:visibility="gone"
           style="@style/ExoStyledControls.Button.Bottom.FullScreen"/>
 
       <ImageButton android:id="@+id/exo_overflow_show"
@@ -109,6 +111,7 @@
       android:layoutDirection="ltr">
 
     <ImageButton android:id="@+id/exo_minimal_fullscreen"
+        android:visibility="gone"
         style="@style/ExoStyledControls.Button.Bottom.FullScreen"/>
 
   </LinearLayout>
