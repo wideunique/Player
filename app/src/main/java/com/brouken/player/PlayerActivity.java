@@ -705,9 +705,15 @@ public class PlayerActivity extends AppCompatActivity {
             items.add(getString(R.string.pref_subtitle_header));
             actions.add(() -> { if (exoSubtitle != null) exoSubtitle.performClick(); });
 
-            // Resize
-            items.add(getString(R.string.button_crop));
-            actions.add(() -> { if (buttonAspectRatio != null) buttonAspectRatio.performClick(); });
+            // Resize (show current mode)
+            {
+                final int mode = playerView.getResizeMode();
+                final String modeText = (mode == AspectRatioFrameLayout.RESIZE_MODE_FIT)
+                        ? getString(R.string.video_resize_fit)
+                        : getString(R.string.video_resize_crop);
+                items.add(getString(R.string.button_crop) + " (" + modeText + ")");
+                actions.add(() -> { if (buttonAspectRatio != null) buttonAspectRatio.performClick(); });
+            }
 
             // PiP
             if (Utils.isPiPSupported(this)) {
