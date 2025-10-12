@@ -646,26 +646,30 @@ public class PlayerActivity extends AppCompatActivity {
         //exoBasicControls.setVisibility(View.GONE);
 
         exoSettings.setOnLongClickListener(view -> {
-            //askForScope(false, false);
-            Intent intent = new Intent(this, SettingsActivity.class);
-            startActivityForResult(intent, REQUEST_SETTINGS);
-            return true;
-        });
-        exoSettings.setOnClickListener(v -> {
             final ArrayList<CharSequence> items = new ArrayList<>();
             final ArrayList<Runnable> actions = new ArrayList<>();
 
             items.add(getString(R.string.pref_subtitle_header));
             actions.add(() -> { if (exoSubtitle != null) exoSubtitle.performClick(); });
 
+            items.add(getString(R.string.button_crop));
+            actions.add(() -> { if (buttonAspectRatio != null) buttonAspectRatio.performClick(); });
+
             if (Utils.isPiPSupported(this)) {
                 items.add(getString(R.string.button_pip));
                 actions.add(() -> { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) enterPiP(); });
             }
 
+            items.add(getString(R.string.pref_title));
+            actions.add(() -> {
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivityForResult(intent, REQUEST_SETTINGS);
+            });
+
             new AlertDialog.Builder(PlayerActivity.this)
                     .setItems(items.toArray(new CharSequence[0]), (dialog, which) -> actions.get(which).run())
                     .show();
+            return true;
         });
 
 
@@ -683,7 +687,6 @@ public class PlayerActivity extends AppCompatActivity {
         controls.addView(buttonOpen);
         controls.addView(buttonDownload);
 
-        controls.addView(buttonAspectRatio);
         if (mPrefs.repeatToggle) {
             controls.addView(exoRepeat);
         }
