@@ -50,8 +50,11 @@
       <ImageButton android:id="@+id/exo_shuffle"
           style="@style/ExoStyledControls.Button.Bottom.Shuffle"/>
 
-      <ImageButton android:id="@+id/exo_repeat_toggle"
-          style="@style/ExoStyledControls.Button.Bottom.RepeatToggle"/>
+      <ImageButton
+          android:id="@+id/exo_repeat_toggle"
+          style="@style/ExoStyledControls.Button.Bottom.RepeatToggle"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content" />
 
       <ImageButton android:id="@+id/exo_subtitle"
           android:visibility="gone"

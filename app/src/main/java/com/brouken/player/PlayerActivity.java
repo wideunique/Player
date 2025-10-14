@@ -59,7 +59,9 @@ import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
@@ -1685,6 +1687,7 @@ public class PlayerActivity extends AppCompatActivity {
                 }
             } else if (state == Player.STATE_ENDED) {
                 playbackFinished = true;
+                restoreControllerAfterPlaybackEnded(player, playerView, barsHider);
                 if (apiAccess) {
                     finish();
                 }
@@ -2316,6 +2319,22 @@ public class PlayerActivity extends AppCompatActivity {
             androidx.media3.common.util.Util.handlePlayButtonAction(player);
         } else {
             androidx.media3.common.util.Util.handlePauseButtonAction(player);
+        }
+    }
+
+    @VisibleForTesting
+    static void restoreControllerAfterPlaybackEnded(@Nullable Player player,
+                                                    @Nullable CustomPlayerView playerView,
+                                                    @Nullable Runnable barsHider) {
+        if (player != null) {
+            player.setPlayWhenReady(false);
+        }
+        if (playerView != null) {
+            playerView.setControllerShowTimeoutMs(-1);
+            if (barsHider != null) {
+                playerView.removeCallbacks(barsHider);
+            }
+            playerView.showController();
         }
     }
 
