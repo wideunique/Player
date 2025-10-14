@@ -137,6 +137,8 @@ public class PlayerActivity extends AppCompatActivity {
     public static boolean controllerVisible;
     public static boolean controllerVisibleFully;
     public static Snackbar snackbar;
+    @VisibleForTesting
+    static final long CONTROLLER_AUTO_HIDE_THRESHOLD_MS = TimeUnit.SECONDS.toMillis(5);
     private ExoPlaybackException errorToShow;
     public static int boostLevel = 0;
     private boolean isScaling = false;
@@ -221,6 +223,9 @@ public class PlayerActivity extends AppCompatActivity {
             Utils.toggleSystemUi(PlayerActivity.this, playerView, false);
         }
     };
+
+    private final Runnable autoHideControlsRunnable = this::performAutoHideControls;
+    private boolean controlsAutoHideTriggered;
 
     private final OnBackPressedCallback backPressedCallback = new OnBackPressedCallback(true) {
         @Override
@@ -1385,6 +1390,9 @@ public class PlayerActivity extends AppCompatActivity {
             mediaSession.release();
         }
 
+        controlsAutoHideTriggered = false;
+        cancelAutoHideControls();
+
         if (player.canAdvertiseSession()) {
             try {
                 mediaSession = new MediaSession.Builder(this, player).build();
@@ -1544,6 +1552,8 @@ public class PlayerActivity extends AppCompatActivity {
             player.release();
             player = null;
         }
+        cancelAutoHideControls();
+        controlsAutoHideTriggered = false;
         titleView.setVisibility(View.GONE);
         updateButtons(false);
     }
@@ -1577,6 +1587,9 @@ public class PlayerActivity extends AppCompatActivity {
 
             if (!isPlaying) {
                 PlayerActivity.locked = false;
+                cancelAutoHideControls();
+            } else {
+                scheduleAutoHideControlsIfNeeded();
             }
         }
 
@@ -1655,7 +1668,7 @@ public class PlayerActivity extends AppCompatActivity {
                                                 player.play();
                                             }
                                             if (playerView != null) {
-                                                playerView.hideController();
+                                                PlayerActivity.this.scheduleAutoHideControlsIfNeeded();
                                             }
                                         }
                                     }
@@ -1672,7 +1685,7 @@ public class PlayerActivity extends AppCompatActivity {
                         if (play) {
                             play = false;
                             player.play();
-                            playerView.hideController();
+                            PlayerActivity.this.scheduleAutoHideControlsIfNeeded();
                         }
                     }
 
@@ -1687,6 +1700,7 @@ public class PlayerActivity extends AppCompatActivity {
                 }
             } else if (state == Player.STATE_ENDED) {
                 playbackFinished = true;
+                cancelAutoHideControls();
                 restoreControllerAfterPlaybackEnded(player, playerView, barsHider);
                 if (apiAccess) {
                     finish();
@@ -1709,6 +1723,15 @@ public class PlayerActivity extends AppCompatActivity {
                     errorToShow = exoPlaybackException;
                 }
             }
+        }
+
+        @Override
+        public void onPositionDiscontinuity(Player.PositionInfo oldPosition, Player.PositionInfo newPosition, int reason) {
+            long positionMs = newPosition.positionMs;
+            if (positionMs == C.TIME_UNSET && player != null) {
+                positionMs = player.getCurrentPosition();
+            }
+            PlayerActivity.this.resetAutoHideControlsIfNeeded(positionMs);
         }
     }
 
@@ -2336,6 +2359,61 @@ public class PlayerActivity extends AppCompatActivity {
             }
             playerView.showController();
         }
+    }
+
+    private void performAutoHideControls() {
+        if (playerView == null) {
+            return;
+        }
+        playerView.removeCallbacks(autoHideControlsRunnable);
+        controlsAutoHideTriggered = true;
+        playerView.hideController();
+    }
+
+    private void scheduleAutoHideControlsIfNeeded() {
+        if (player == null || playerView == null || controlsAutoHideTriggered) {
+            return;
+        }
+        if (!player.isPlaying()) {
+            return;
+        }
+        long positionMs = player.getCurrentPosition();
+        long delayMs = computeAutoHideDelayMs(positionMs);
+        playerView.removeCallbacks(autoHideControlsRunnable);
+        if (delayMs <= 0) {
+            performAutoHideControls();
+        } else {
+            playerView.postDelayed(autoHideControlsRunnable, delayMs);
+        }
+    }
+
+    private void cancelAutoHideControls() {
+        if (playerView != null) {
+            playerView.removeCallbacks(autoHideControlsRunnable);
+        }
+    }
+
+    private void resetAutoHideControlsIfNeeded(long positionMs) {
+        if (!shouldResetAutoHide(positionMs)) {
+            return;
+        }
+        controlsAutoHideTriggered = false;
+        cancelAutoHideControls();
+        if (player != null && player.isPlaying()) {
+            scheduleAutoHideControlsIfNeeded();
+        }
+    }
+
+    @VisibleForTesting
+    static long computeAutoHideDelayMs(long positionMs) {
+        long sanitized = Math.max(0L, positionMs == C.TIME_UNSET ? 0L : positionMs);
+        long delay = CONTROLLER_AUTO_HIDE_THRESHOLD_MS - sanitized;
+        return Math.max(0L, delay);
+    }
+
+    @VisibleForTesting
+    static boolean shouldResetAutoHide(long positionMs) {
+        return positionMs != C.TIME_UNSET && positionMs < CONTROLLER_AUTO_HIDE_THRESHOLD_MS;
     }
 
     void skipToNext() {

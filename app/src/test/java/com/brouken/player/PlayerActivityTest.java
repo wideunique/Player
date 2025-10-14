@@ -1,5 +1,8 @@
 package com.brouken.player;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -38,5 +41,27 @@ public class PlayerActivityTest {
     @Test
     public void restoreControllerAfterPlaybackEnded_handlesNullInputs() {
         PlayerActivity.restoreControllerAfterPlaybackEnded(null, null, null);
+    }
+
+    @Test
+    public void computeAutoHideDelayMs_returnsRemainingTimeUntilThreshold() {
+        long delay = PlayerActivity.computeAutoHideDelayMs(3000);
+
+        assertEquals(2000, delay);
+    }
+
+    @Test
+    public void computeAutoHideDelayMs_zerosWhenAlreadyBeyondThreshold() {
+        assertEquals(0, PlayerActivity.computeAutoHideDelayMs(6000));
+    }
+
+    @Test
+    public void shouldResetAutoHide_trueWhenPositionBeforeThreshold() {
+        assertTrue(PlayerActivity.shouldResetAutoHide(PlayerActivity.CONTROLLER_AUTO_HIDE_THRESHOLD_MS - 1));
+    }
+
+    @Test
+    public void shouldResetAutoHide_falseWhenPositionAfterThreshold() {
+        assertFalse(PlayerActivity.shouldResetAutoHide(PlayerActivity.CONTROLLER_AUTO_HIDE_THRESHOLD_MS));
     }
 }
