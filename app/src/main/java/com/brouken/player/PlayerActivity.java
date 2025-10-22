@@ -1574,7 +1574,12 @@ public class PlayerActivity extends AppCompatActivity {
 
         @Override
         public void onIsPlayingChanged(boolean isPlaying) {
-            playerView.setKeepScreenOn(isPlaying);
+            boolean keepScreenOn = isPlaying;
+            if (!keepScreenOn && player != null) {
+                final int playbackState = player.getPlaybackState();
+                keepScreenOn = playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING;
+            }
+            playerView.setKeepScreenOn(keepScreenOn);
 
             if (Utils.isPiPSupported(PlayerActivity.this)) {
                 if (isPlaying) {
